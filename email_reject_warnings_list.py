@@ -12,7 +12,12 @@ import os.path
 import re
 
 from email.MIMEMultipart import MIMEMultipart
+from email.MIMEBase import MIMEBase
 from email.MIMEText import MIMEText
+from email.Utils import COMMASPACE, formatdate
+from email import Encoders
+
+import os
 import smtplib
 
 import sys
@@ -29,6 +34,8 @@ import uuid
 # http://docs.python.org/2/library/email-examples.html
 # http://stackoverflow.com/questions/842059/is-there-a-portable-way-to-get-the-current-username-in-python
 # http://docs.python.org/2/library/uuid.html
+# http://stackoverflow.com/questions/398237/how-to-use-the-csv-mime-type
+# http://stackoverflow.com/a/3363254
 
 date = datetime.date.today()
 current_user = os.path.basename(os.path.expanduser('~'))
@@ -43,31 +50,30 @@ DEBUG_ON = True
 SEND_MAIL_WHILE_DEBUG_ON = True
 
 if DEBUG_ON:
-    email_server = "localhost"
-    email_sender = current_user
-    email_subject = "Rejection warnings - %s" % date
-
-    # Specify recipients, separated by commas 
-    # NOTE: Make sure to include a trailing comma
-    email_recipients = "root,"
-
-else:
-    email_server = "localhost"
-    email_sender = "logbucket@example.com"
-    email_subject = "Rejection warnings - %s" % date
-
-    # Make sure this has a trailing comma
-    email_recipients = "logbucket@example.com,"
-
-
-if DEBUG_ON:
     # A copy of the real log that I downloaded to test with
     input_file="/mnt/hgfs/dev/whyaskwhy.org/systems/mail/var/log/mail.log"
 else:
     # The previous day's log. This script runs after log rotation completes
     input_file="/var/log/mail.log.1"
 
-output_file="/tmp/rejection_warnings_%s.tmp" % uuid.uuid4()
+output_file="/tmp/rejection_warnings_%s.csv" % uuid.uuid4()
+
+
+if DEBUG_ON:
+    email_server = "localhost"
+    email_sender = current_user
+    email_recipients = ['root']
+
+else:
+    email_server = "localhost"
+    email_sender = "logbucket@example.com"
+    email_recipients = ['logbucket@example.com']
+
+email_subject = "Rejection warnings - %s" % date
+email_body = """
+Attached is a report of all reject_warning entries in CSV format
+for the %s log file
+""" % input_file
 
 ############################################
 # CORE VARIABLES (Handle with care)
@@ -127,10 +133,16 @@ class EmailReport(object):
         self.recipients = email_recipients
         self.subject = email_subject
         self.server = email_server
+        self.body = email_body
 
-def email_file(email_conf, csv_input_file):
+
+def send_email(email_conf, csv_input_file):
     """Use Python's smtplib to send user an email with CSV attachment"""
-    
+
+    # Based off of code here: http://stackoverflow.com/a/3363254
+
+    assert type(email_conf.recipients)==list
+
     if DEBUG_ON:
         print "email_conf settings:"
         print "-" * 15
@@ -143,15 +155,15 @@ def email_file(email_conf, csv_input_file):
         if os.path.isfile(csv_input_file):
             print "%s exists" % csv_input_file
 
-    COMMASPACE = ', '
-
     # Create the container (outer) email message.
     msg = MIMEMultipart()
     msg['Subject'] = email_conf.subject
     msg['From'] = email_conf.sender
-    #msg['To'] = COMMASPACE.join(email_conf.recipients)
-    msg['To'] = email_conf.recipients
-    msg.preamble = email_conf.subject
+    msg['To'] = COMMASPACE.join(email_conf.recipients)
+    #msg['To'] = email_conf.recipients
+    msg['Date'] = formatdate(localtime=True)
+
+    msg.attach( MIMEText(email_conf.body) )
 
     try:
         input_fh = open(csv_input_file,'r')
@@ -160,7 +172,11 @@ def email_file(email_conf, csv_input_file):
         print sys.exc_info()[0]
         return False
     else:
-        msg.attach(MIMEText(input_fh.read()))
+        part = MIMEBase('text', "csv")
+        part.set_payload( input_fh.read() )
+        Encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(csv_input_file))
+        msg.attach(part)
 
         if DEBUG_ON:
             print "%s, %s, %s" % (email_conf.sender, email_conf.recipients, msg)
@@ -246,7 +262,7 @@ def main():
     email_settings = EmailReport()
 
     # Use those settings and provide CSV list to transform to a MIME attachment
-    email_file(email_settings, output_file)
+    send_email(email_settings, output_file)
 
 
 if __name__ == "__main__":
