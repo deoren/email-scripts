@@ -103,15 +103,19 @@ regex="""
     :[\s\w]+\[([\d.]+)\]
 
     # Extends the match up to
-    # ': 450 4.7.1 Client host rejected: cannot find your hostname, [201.240.88.59]; '
-    [\s\w.:,\[\]]+;\s
+    # ': 450 4.7.1 Client host rejected: cannot find your hostname,' and
+    # Adds 'Client host rejected: cannot find your hostname' to capture group 3
+    [:\s\d.]+([\w\s]+:\s[\w\s]+),
+
+    # Extends the match up to ' [95.9.49.216]; '
+    [\[\]\d.;\s]+
 
     # Extends the match up to 'from=<qzqbf@grwwyg.net> '
     # Adds 'qzqbf@grwwyg.net' to capture group 3
     from=<([\w@.]+)>\s
 
     # Extends the match up to 'to=<moneybags@example.com> '
-    # Adds 'moneybags@example.com' to capture group 4
+    # Adds 'moneybags@example.com' to capture group 5
     #to=<(\w+@\w+\.\w+)>\s
     to=<([\w@.]+)>\s
 
@@ -119,7 +123,7 @@ regex="""
     proto=\w+\s
 
     # Extends the match up to 'helo=<client-201.240.88.59.speedy.net.pe>'
-    # Adds 'client-201.240.88.59.speedy.net.pe' to capture group 5
+    # Adds 'client-201.240.88.59.speedy.net.pe' to capture group 6
     helo=<(\[?[\w\.-]+\]?)>
 
     """
