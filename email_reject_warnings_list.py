@@ -227,10 +227,10 @@ def parse_log(input_file, regex):
                     pass
                 else:
                     if DEBUG_ON:
-                        print "We found:\n\t%s,%s,%s,%s,%s" % matches
+                        print "We found:\n\t%s,%s,%s,%s,%s,%s" % matches
 
                     # Build CSV string, add to list
-                    csv_string='"%s","%s","%s","%s","%s"' % matches
+                    csv_string='"%s","%s","%s","%s","%s","%s"' % matches
                     rejection_warnings.append(csv_string)
         input_fh.close()
         return rejection_warnings
