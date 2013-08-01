@@ -87,7 +87,7 @@ regex="""
     # Descriptions here are based off of our "test_string" value
 
     # Matches 'Jul 25 18:30:00' and also places it into capture group 1
-    ^([\w]+\s\d+\s\d{2}:\d{2}:\d{2})
+    ^([\w]+\s{1,2}\d+\s\d{2}:\d{2}:\d{2})
 
     # Extends the match up to ' mail postfix/smtpd[20177]'
     \s\w+\s\w+\/\w+\[\d+\]
