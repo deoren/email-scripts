@@ -200,7 +200,7 @@ def parse_log(input_file, regex):
 
     rejection_warnings = []
 
-    report_legend = '"Datestamp","Remote Host","Claimed sender","Recipient","Helo greeting"'
+    report_legend = '"Datestamp","Remote Host","Reason","Claimed sender","Recipient","Helo greeting"'
 
     rejection_warnings.append(report_legend)
 
