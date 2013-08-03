@@ -79,12 +79,17 @@ for the %s log file
 # CORE VARIABLES (Handle with care)
 ############################################
 
-test_string="Jul 26 06:38:36 mail postfix/smtpd[21459]: NOQUEUE: reject_warning: RCPT from unknown[95.9.49.216]: 450 4.7.1 Client host rejected: cannot find your hostname, [95.9.49.216]; from=<moneybagslv@appliedps.com> to=<moneybags@example.com> proto=ESMTP helo=<95.9.49.216.static.ttnet.com.tr>"
+test_string1="Jul 26 06:38:36 mail postfix/smtpd[21459]: NOQUEUE: reject_warning: RCPT from unknown[95.9.49.216]: 450 4.7.1 Client host rejected: cannot find your hostname, [95.9.49.216]; from=<moneybagslv@appliedps.com> to=<moneybags@example.com> proto=ESMTP helo=<95.9.49.216.static.ttnet.com.tr>"
+test_string2="Aug  2 15:08:40 mail postfix/smtpd[16867]: NOQUEUE: reject_warning: RCPT from 190-82-114-19.static.tie.cl[190.82.114.19]: 554 5.7.1 Service unavailable; Client host [190.82.114.19] blocked using b.barracudacentral.org; http://www.barracudanetworks.com/reputation/?pr=1&ip=190.82.114.19; from=<misc2qhfbt@999tetra.com> to=<misc2@example.com> proto=ESMTP helo=<190-82-114-19.static.tie.cl>"
 
-# Using re.X option
-regex="""
+regexes = []
 
-    # Descriptions here are based off of our "test_string" value
+# * Using re.X option
+# * Meant to match against 'Client host rejected: cannot find your hostname'
+#   reject_warning entries
+regexes.append("""
+
+    # Descriptions here are based off of our "test_string1" value
 
     # Matches 'Jul 25 18:30:00' and also places it into capture group 1
     ^([\w]+\s{1,2}\d+\s\d{2}:\d{2}:\d{2})
@@ -126,8 +131,52 @@ regex="""
     # Adds 'client-201.240.88.59.speedy.net.pe' to capture group 6
     helo=<(\[?[\w\.-]+\]?)>
 
-    """
+    """)
 
+# * Using re.X option
+# * Meant to match against Barracuda reject_warning entries
+regexes.append("""
+
+    # Descriptions here are based off of our "test_string2" value
+
+    # Matches 'Aug  2 15:08:40' and also places it into capture group 1
+    ^([\w]+\s{1,2}\d+\s\d{2}:\d{2}:\d{2})
+
+    # Extends the match up to ' mail postfix/smtpd[16867]'
+    \s\w+\s\w+\/\w+\[\d+\]
+
+    # Extends the match up to ': NOQUEUE reject_warning: RCPT from '
+    :\s\w+:\sreject_warning:\sRCPT\sfrom\s
+
+    # Extends the match up to 
+    # '190-82-114-19.static.tie.cl[190.82.114.19]: 554 5.7.1 '
+    # Adds '' to capture group 2
+    [-.\w:]+\[([\d.]+)\]:\s\d{3}\s\d\.\d\.\d\s
+
+    # Extends the match up to 'Service unavailable; '
+    [.\w\s\[\]]+;\s
+
+    # Extends the match up to 
+    # 'Client host [190.82.114.19] blocked using b.barracudacentral.org; http://www.barracudanetworks.com/reputation/?pr=1&ip=190.82.114.19; '
+    # Adds the entire line to capture group 3
+    ([.\w\s\[\]]+;.+http[.:\w\s\/\/\&\?\=]+);\s
+
+    # Extends the match up to 'from=<misc2qhfbt@999tetra.com> '
+    # Adds 'misc2qhfbt@999tetra.com' to capture group 4
+    from=<([\w@.]+)>\s
+
+    # Extends the match up to 'to=<misc2@example.com> '
+    # Adds 'misc2@example.com' to capture group 5
+    to=<([\w@.]+)>\s
+
+    # Extends the match up to 'proto=ESMTP '
+    proto=\w+\s
+
+    # Extends the match up to 'helo=<190-82-114-19.static.tie.cl>'
+    # Adds '190-82-114-19.static.tie.cl' to capture group 6
+    helo=<(\[?[\w\.-]+\]?)>
+
+    """)
 
 class EmailReport(object):
     """A container for email-related settings"""
@@ -191,21 +240,17 @@ def send_email(email_conf, csv_input_file):
             mailer.sendmail(email_conf.sender, email_conf.recipients, msg.as_string())
             mailer.quit()
 
-def parse_log(input_file, regex):
+def parse_log(input_file, regexes):
     """Examine log file and returns a list of CSV-formatted values"""
-
-    # The Regular Expression pattern we're going to use when examining
-    # the log file
-    pattern = re.compile(regex, re.X)
 
     rejection_warnings = []
 
     report_legend = '"Datestamp","Remote Host","Reason","Claimed sender","Recipient","Helo greeting"'
 
-    rejection_warnings.append(report_legend)
-
     if DEBUG_ON:
         print report_legend
+
+    rejection_warnings.append(report_legend)
 
     try:
         input_fh = open(input_file,'r')
@@ -221,18 +266,25 @@ def parse_log(input_file, regex):
             # FIXME: Replace this hard-coded value
             if 'reject_warning' in line:
 
-                try:
-                    matches = pattern.match(line).groups()
-                except:
-                    pass
-                else:
-                    if DEBUG_ON:
-                        print "We found:\n\t%s,%s,%s,%s,%s,%s" % matches
+                for regex in regexes:
+                    
+                    # The Regular Expression pattern we're going to use when examining
+                    # the log file
+                    pattern = re.compile(regex, re.X)
 
-                    # Build CSV string, add to list
-                    csv_string='"%s","%s","%s","%s","%s","%s"' % matches
-                    rejection_warnings.append(csv_string)
+                    try:
+                        matches = pattern.match(line).groups()
+                    except:
+                        pass
+                    else:
+                        if DEBUG_ON:
+                            print "We found:\n\t%s,%s,%s,%s,%s,%s" % matches
+
+                        # Build CSV string, add to list
+                        csv_string='"%s","%s","%s","%s","%s","%s"' % matches
+                        rejection_warnings.append(csv_string)
         input_fh.close()
+
         return rejection_warnings
 
 
@@ -257,7 +309,7 @@ def write_file(filename, csv_list):
 def main():
 
     rejection_warnings = []
-    rejection_warnings = parse_log(input_file, regex)
+    rejection_warnings = parse_log(input_file, regexes)
 
     # Create the CSV input file for the email_file() function
     write_file(output_file, rejection_warnings)
