@@ -10,6 +10,7 @@ Parse mail log and mail CSV attachment listing any rejection warnings found
 import datetime
 import os.path
 import re
+import sys
 
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
@@ -258,8 +259,8 @@ def parse_log(input_file, regexes):
     except:
         print "[!] Error accessing %s" % input_file
         print sys.exc_info()[0]
-        
-        return False
+
+        sys.exit()
     else:
         for line in input_fh:
 
@@ -312,14 +313,20 @@ def main():
     rejection_warnings = []
     rejection_warnings = parse_log(input_file, regexes)
 
-    # Create the CSV input file for the email_file() function
-    write_file(output_file, rejection_warnings)
+    # If there are rejection warnings ...
+    if len(rejection_warnings) != 0:
 
-    # Create email object using user configurable settings
-    email_settings = EmailReport()
+        # Create the CSV input file for the email_file() function
+        write_file(output_file, rejection_warnings)
 
-    # Use those settings and provide CSV list to transform to a MIME attachment
-    send_email(email_settings, output_file)
+        # Create email object using user configurable settings
+        email_settings = EmailReport()
+
+        # Use those settings and provide CSV list to transform to a MIME attachment
+        send_email(email_settings, output_file)
+
+    else:
+        sys.exit()
 
 
 if __name__ == "__main__":
