@@ -50,10 +50,11 @@ DEBUG_ON = True
 SEND_MAIL_WHILE_DEBUG_ON = True
 
 if DEBUG_ON:
-    # A copy of the real log that I downloaded to test with
-    input_file="/mnt/hgfs/dev/whyaskwhy.org/systems/mail/var/log/mail.log"
+    # Current production log file
+    input_file="/var/log/mail.log"
 else:
-    # The previous day's log. This script runs after log rotation completes
+    # The previous day's production log file. This script runs after log 
+    # rotation completes
     input_file="/var/log/mail.log.1"
 
 output_file="/tmp/rejection_warnings_%s.csv" % uuid.uuid4()
