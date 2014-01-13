@@ -314,7 +314,7 @@ def main():
     rejection_warnings = parse_log(input_file, regexes)
 
     # If there are rejection warnings ...
-    if len(rejection_warnings) != 0:
+    if len(rejection_warnings) > 1:
 
         # Create the CSV input file for the email_file() function
         write_file(output_file, rejection_warnings)
