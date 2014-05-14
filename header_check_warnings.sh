@@ -23,9 +23,7 @@ warning_pattern=" warning: header "
 
 echo -e "\n#################################################################"
 echo "Sender email addresses flagged by header checks"
-echo "#################################################################"
-
-echo -e "\nHEADER CHECK WARNING ENTRIES (ADDRESSES):\n"
+echo -e "#################################################################\n"
 
 cat ${current_mail_log} ${previous_mail_log} \
     | grep "${warning_pattern}" \
@@ -50,9 +48,13 @@ then
     # NOTE: This might not be a good idea if you're sending this output to a
     #        mail hosting service like Yahoo or Gmail as the log entries will
     #        likely trigger high SPAM scores and result in a rejection.
-    echo -e "\nHEADER CHECK WARNING ENTRIES (FULL):\n"
+echo -e "\n#################################################################"
+    echo "Header check warning log entries (FULL):"
+echo -e "#################################################################"
 
+    # The sed entry below appends a newline before each entry for readability
     cat ${current_mail_log} ${previous_mail_log} \
         | grep "${warning_pattern}" \
-        | grep -E 'from=<[[:graph:]]++>'
+        | grep -E 'from=<[[:graph:]]++>' \
+        | sed 's#^#\n#g'
 fi
