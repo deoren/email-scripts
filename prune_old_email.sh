@@ -24,7 +24,10 @@ if [[ "${DEBUG_ON}" -ne 0 ]]; then
 
     echo -e "\n#################################################################"
     echo "Pruning email in these folders older than ${cutoff_date}:"
-    echo "${mailboxes_to_prune[@]}" | sed 's/ /\n* /g'
+
+    # Intentionally adding a leading space here to trigger the regex for the
+    # first item in the (collapsed) array
+    echo " ${mailboxes_to_prune[@]}" | sed 's/ /\n* /g'
     echo -e "#################################################################\n"
 fi
 
