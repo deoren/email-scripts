@@ -6,7 +6,7 @@
 # Purpose: Display emails older than X days in the Trash
 
 # Dovecot calls these 'mailboxes', so I used the same terminology here.
-mailboxes=(
+mailboxes_to_prune=(
     Trash
     Spam
     Junk
@@ -18,7 +18,7 @@ echo -e "\n#################################################################"
 echo "Emails in Trash/Junk/Spam folders older than ${cutoff_date}"
 echo -e "#################################################################\n"
 
-for mailbox in "${mailboxes[@]}"
+for mailbox in "${mailboxes_to_prune[@]}"
 do
     for account in $(
 
