@@ -12,7 +12,7 @@ mailboxes=(
     Junk
 )
 
-cutoff_date="50days"
+cutoff_date="60days"
 
 echo -e "\n#################################################################"
 echo "Emails in Trash/Junk/Spam folders older than ${cutoff_date}"
