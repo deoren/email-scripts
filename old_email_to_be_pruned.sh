@@ -15,7 +15,11 @@ mailboxes_to_prune=(
 cutoff_date="60days"
 
 echo -e "\n#################################################################"
-echo "Emails in Trash/Junk/Spam folders older than ${cutoff_date}"
+echo -e "Emails older than ${cutoff_date} in these folders:"
+
+# Intentionally adding a leading space here to trigger the regex for the
+# first item in the (collapsed) array
+echo " ${mailboxes_to_prune[@]}" | sed 's/ /\n  * /g'
 echo -e "#################################################################\n"
 
 for mailbox in "${mailboxes_to_prune[@]}"
