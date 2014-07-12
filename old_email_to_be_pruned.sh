@@ -10,6 +10,7 @@ mailboxes_to_prune=(
     Trash
     Spam
     Junk
+    Rss2Email\*
 )
 
 cutoff_date="60days"
