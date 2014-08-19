@@ -61,6 +61,43 @@ mysql_client_conf_file="/root/.my-mailserver_expiration_setting.cf"
 
 declare -a query_results
 
+get_accounts_with_old_mail () {
+
+    cutoff_date=$1
+
+    doveadm -v search -A mailbox ${mailbox} before ${cutoff_date} \
+        | cut -f 1 -d ' ' \
+        | sort \
+        | uniq
+
+}
+
+print_mailbox_match_count () {
+
+    account=$1
+    mailbox=$2
+    cuteoff_date=$3
+
+    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} before ${cutoff_date} | wc -l)
+
+    echo -e "\n${account} [${mailbox}]: ${msg_match_count}"
+
+}
+
+print_mailbox_match_subject_lines () {
+
+    account=$1
+    mailbox=$2
+    cutoff_date=$3
+
+    doveadm search -u ${account} mailbox ${mailbox} before ${cutoff_date} | 
+    while read guid uid
+    do 
+        doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -i 'Subject: '
+    done
+
+}
+
 
 report_default_mailboxes() {
 
@@ -74,14 +111,11 @@ report_default_mailboxes() {
 
     for mailbox in "${default_mailboxes_to_report[@]}"
     do
-        for account in $(
-
-            doveadm -v search -A mailbox ${mailbox} before ${default_cutoff_date} \
-                | cut -f 1 -d ' ' \
-                | sort \
-                | uniq
-        )
-            do echo "${account} - ${mailbox}: $(doveadm -v search -u ${account} mailbox ${mailbox} before ${default_cutoff_date} | wc -l)"
+        for account in $(get_accounts_with_old_mail "${default_cutoff_date}")
+            do 
+                print_mailbox_match_count "${account}" "${mailbox}" "${default_cutoff_date}"
+                echo "---------------------------------------------------"
+                print_mailbox_match_subject_lines "${account}" "${mailbox}" "${default_cutoff_date}"
         done
     done
 
@@ -111,7 +145,10 @@ report_custom_mailboxes() {
         mailbox=$(echo $mailbox_settings | awk '{print $2}')
         max_days=$(echo $mailbox_settings | awk '{print $3}')
 
-        echo "${account} - ${mailbox}: $(doveadm -v search -u ${account} mailbox ${mailbox} before ${max_days}days | wc -l)"
+        print_mailbox_match_count "${account}" "${mailbox}" "${max_days}"
+        echo "---------------------------------------------------"
+        print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
+
     done
 
 }
