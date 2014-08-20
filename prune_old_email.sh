@@ -76,7 +76,7 @@ print_mailbox_match_count () {
 
     account=$1
     mailbox=$2
-    cuteoff_date=$3
+    cutoff_date=$3
 
     msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} before ${cutoff_date} | wc -l)
 
