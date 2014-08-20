@@ -36,7 +36,8 @@
 # Should this script be verbose in its output?
 DEBUG_ON=1
 
-# Should we refrain from printing individual emails that are to be pruned?
+# Should we refrain from printing individual emails that are to be pruned
+# and skip the actual pruning?
 TESTING_ON=1
 
 #######################################################################
