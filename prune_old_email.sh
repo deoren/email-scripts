@@ -135,7 +135,7 @@ report_default_mailboxes() {
             do 
                 print_mailbox_match_count "${account}" "${mailbox}" "${default_cutoff_date}"
                 echo "---------------------------------------------------"
-                if [[ "${TESTING_ON}" -ne 1 ]]; then
+                if [[ "${TESTING_ON}" -ne 1 ]] && [ "${DEBUG_ON}" -ne 0 ]; then
                     # If not enabled, print matching emails. Otherwise, stay silent.
                     print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
                 fi
@@ -170,7 +170,7 @@ report_custom_mailboxes() {
 
         print_mailbox_match_count "${account}" "${mailbox}" "${max_days}"
         echo "---------------------------------------------------"
-        if [[ "${TESTING_ON}" -ne 1 ]]; then
+        if [[ "${TESTING_ON}" -ne 1 ]] && [ "${DEBUG_ON}" -ne 0 ]; then
             # If not enabled, print matching emails. Otherwise, stay silent.
             print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
         fi
@@ -192,9 +192,9 @@ prune_default_mailboxes() {
 
         if [[ "${DEBUG_ON}" -ne 0 ]]; then
 
-            doveadm -vD expunge -A mailbox ${mailbox} before ${default_cutoff_date}
+            doveadm -vD expunge -A mailbox ${mailbox} before ${default_cutoff_date}days
         else
-            doveadm expunge -A mailbox ${mailbox} before ${default_cutoff_date}
+            doveadm expunge -A mailbox ${mailbox} before ${default_cutoff_date}days
         fi
     done
 
