@@ -123,7 +123,7 @@ print_mailbox_match_subject_lines () {
 report_default_mailboxes() {
 
     echo -e "\n#################################################################"
-    echo -e "Emails older than ${default_cutoff_date} in these folders:"
+    echo -e "Emails older than ${default_cutoff_date}days in these folders:"
 
     # Intentionally adding a leading space here to trigger the regex for the
     # first item in the (collapsed) array
@@ -180,7 +180,7 @@ prune_default_mailboxes() {
     if [[ "${DEBUG_ON}" -ne 0 ]]; then
 
         echo -e "\n#################################################################"
-        echo "Pruning email in these folders older than ${default_cutoff_date}:"
+        echo "Pruning email in these folders older than ${default_cutoff_date}days:"
 
         # Intentionally adding a leading space here to trigger the regex for the
         # first item in the (collapsed) array
@@ -237,7 +237,7 @@ report_default_mailboxes
 
 
 # Prune all accounts
-prune_default_mailboxes
+#prune_default_mailboxes
 
 
 # Generate a list of content to be pruned for per-user settings
@@ -246,5 +246,5 @@ report_custom_mailboxes
 
 # Prune email using per-user settings in addition to whatever the
 # the default pruning script already handles
-prune_custom_mailboxes
+#prune_custom_mailboxes
 
