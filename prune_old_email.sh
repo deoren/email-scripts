@@ -101,7 +101,7 @@ print_mailbox_match_count () {
 
     msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} before ${cutoff_date}days | wc -l)
 
-    echo -e "\n${account} [${mailbox}]: ${msg_match_count}"
+    echo -e "\n${account} [${mailbox}] (${cutoff_date} days): ${msg_match_count}"
 
 }
 
@@ -123,11 +123,7 @@ print_mailbox_match_subject_lines () {
 report_default_mailboxes() {
 
     echo -e "\n#################################################################"
-    echo -e "Emails older than ${default_cutoff_date}days in these folders:"
-
-    # Intentionally adding a leading space here to trigger the regex for the
-    # first item in the (collapsed) array
-    echo " ${default_mailboxes_to_report[@]}" | sed 's/ /\n  * /g'
+    echo -e "Processing default mailbox expiration settings ..."
     echo -e "#################################################################\n"
 
     for mailbox in "${default_mailboxes_to_report[@]}"
@@ -145,7 +141,7 @@ report_default_mailboxes() {
 report_custom_mailboxes() {
 
     echo -e "\n#################################################################"
-    echo -e "Processing custom/per-use mailbox expiration settings ..."
+    echo -e "Processing custom per-user/per-mailbox expiration settings ..."
     echo -e "#################################################################\n"
 
     #
