@@ -58,7 +58,8 @@ default_mailboxes_to_report=(
     Junk
 )
 
-default_cutoff_date="60days"
+# Measured in days (Example: "30")
+default_cutoff_date="60"
 
 #######################################################################
 # Per-user settings
@@ -85,7 +86,7 @@ get_accounts_with_old_mail () {
 
     cutoff_date=$1
 
-    doveadm -v search -A mailbox ${mailbox} before ${cutoff_date} \
+    doveadm -v search -A mailbox ${mailbox} before ${cutoff_date}days \
         | cut -f 1 -d ' ' \
         | sort \
         | uniq
@@ -98,7 +99,7 @@ print_mailbox_match_count () {
     mailbox=$2
     cutoff_date=$3
 
-    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} before ${cutoff_date} | wc -l)
+    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} before ${cutoff_date}days | wc -l)
 
     echo -e "\n${account} [${mailbox}]: ${msg_match_count}"
 
@@ -110,7 +111,7 @@ print_mailbox_match_subject_lines () {
     mailbox=$2
     cutoff_date=$3
 
-    doveadm search -u ${account} mailbox ${mailbox} before ${cutoff_date} | 
+    doveadm search -u ${account} mailbox ${mailbox} before ${cutoff_date}days | 
     while read guid uid
     do 
         doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -i 'Subject: '
