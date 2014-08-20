@@ -12,6 +12,26 @@
 #   http://wiki2.dovecot.org/Tools/Doveadm/Expunge
 #   http://wiki2.dovecot.org/Tools/Doveadm/SearchQuery
 #   http://wiki2.dovecot.org/Tools/Doveadm/Search
+#   http://notes.sagredo.eu/node/124
+
+#############################################################################
+# FIXME:
+#############################################################################
+#   How do I want to define email older than X that should be removed?
+#
+# * Email received more than X days and moved to trash 
+#       (eligible immediately)
+#
+#       doveadm -v search -A mailbox ${mailbox} before ${cutoff_date}days
+#
+#
+# * Email placed in the Trash and left there for X days 
+#       (eligible after X days sitting in Trash)
+#
+#
+#       doveadm -v search -A mailbox ${mailbox} savedbefore ${cutoff_date}days
+#
+#############################################################################
 
 # Should this script be verbose in its output?
 DEBUG_ON=1
