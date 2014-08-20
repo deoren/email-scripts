@@ -36,6 +36,9 @@
 # Should this script be verbose in its output?
 DEBUG_ON=1
 
+# Should we refrain from printing individual emails that are to be pruned?
+TESTING_ON=1
+
 #######################################################################
 # Settings for all accounts
 #######################################################################
@@ -132,7 +135,10 @@ report_default_mailboxes() {
             do 
                 print_mailbox_match_count "${account}" "${mailbox}" "${default_cutoff_date}"
                 echo "---------------------------------------------------"
-                print_mailbox_match_subject_lines "${account}" "${mailbox}" "${default_cutoff_date}"
+                if [[ "${TESTING_ON}" -ne 1 ]]; then
+                    # If not enabled, print matching emails. Otherwise, stay silent.
+                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
+                fi
         done
     done
 
@@ -164,7 +170,10 @@ report_custom_mailboxes() {
 
         print_mailbox_match_count "${account}" "${mailbox}" "${max_days}"
         echo "---------------------------------------------------"
-        print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
+        if [[ "${TESTING_ON}" -ne 1 ]]; then
+            # If not enabled, print matching emails. Otherwise, stay silent.
+            print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
+        fi
 
     done
 
@@ -172,15 +181,9 @@ report_custom_mailboxes() {
 
 prune_default_mailboxes() {
 
-
     if [[ "${DEBUG_ON}" -ne 0 ]]; then
-
         echo -e "\n#################################################################"
-        echo "Pruning email in these folders older than ${default_cutoff_date}days:"
-
-        # Intentionally adding a leading space here to trigger the regex for the
-        # first item in the (collapsed) array
-        echo " ${default_mailboxes_to_prune[@]}" | sed 's/ /\n* /g'
+        echo -e "Pruning emails that meet default mailbox expiration settings ..."
         echo -e "#################################################################\n"
     fi
 
@@ -198,6 +201,12 @@ prune_default_mailboxes() {
 }
 
 prune_custom_mailboxes() {
+
+    if [[ "${DEBUG_ON}" -ne 0 ]]; then
+        echo -e "\n#################################################################"
+        echo -e "Pruning emails that meet custom mailbox expiration settings ..."
+        echo -e "#################################################################\n"
+    fi
 
     #
     # Build array from query results
@@ -233,7 +242,10 @@ report_default_mailboxes
 
 
 # Prune all accounts
-prune_default_mailboxes
+if [[ "${TESTING_ON}" -ne 1 ]]; then
+    # Only prune if we're not actively testing new changes
+    prune_default_mailboxes
+fi
 
 
 # Generate a list of content to be pruned for per-user settings
@@ -242,5 +254,8 @@ report_custom_mailboxes
 
 # Prune email using per-user settings in addition to whatever the
 # the default pruning script already handles
-prune_custom_mailboxes
+if [[ "${TESTING_ON}" -ne 1 ]]; then
+    # Only prune if we're not actively testing new changes
+    prune_custom_mailboxes
+fi
 
