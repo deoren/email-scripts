@@ -138,7 +138,7 @@ report_default_mailboxes() {
                 echo "---------------------------------------------------"
                 if [[ "${TESTING_ON}" -ne 1 ]] && [ "${DEBUG_ON}" -ne 0 ]; then
                     # If not enabled, print matching emails. Otherwise, stay silent.
-                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
+                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${default_cutoff_date}"
                 fi
         done
     done
