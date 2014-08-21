@@ -67,8 +67,6 @@ DISPLAY_MAILBOX_REMOVAL_COUNT=1
 default_mailboxes_to_prune=(
     Trash
 
-    Rss2Email\*
-
 # Disabled because we're not using them yet and I haven't given users enough
 # of a heads up that we're pruning these now.
 #    Spam
