@@ -33,12 +33,31 @@
 #
 #############################################################################
 
-# Should this script be verbose in its output?
-DEBUG_ON=1
+# Turn this off if testing other portions of the code (reporting for example)
+EMAIL_PRUNING_ENABLED=1
 
-# Should we refrain from printing individual emails that are to be pruned
-# and skip the actual pruning?
-TESTING_ON=1
+# Verbose output. Useful to verify that the script works as a whole. Recommended
+# to disable if not actively testing/verifying script functionality.
+DISPLAY_PRUNING_OUTPUT=1
+
+
+#
+# NOTE:
+#
+#   Disabling both of these makes calling the reporting fucntions useless.
+#   Enabling the 'DISPLAY_MAILBOX_REMOVAL_COUNT' option and not the other
+#   probably won't be all that useful.
+#
+
+# Displays the subject lines of emails that are about to be removed
+DISPLAY_EMAIL_SUBJECT_LINES=1
+
+# Displays the account, mailbox and number of emails that are about to be 
+# removed from it
+DISPLAY_MAILBOX_REMOVAL_COUNT=1
+
+
+
 
 #######################################################################
 # Settings for all accounts
@@ -134,10 +153,11 @@ report_default_mailboxes() {
     do
         for account in $(get_accounts_with_old_mail "${default_cutoff_date}")
             do 
-                print_mailbox_match_count "${account}" "${mailbox}" "${default_cutoff_date}"
-                echo "---------------------------------------------------"
-                if [[ "${TESTING_ON}" -ne 1 ]] && [ "${DEBUG_ON}" -ne 0 ]; then
-                    # If not enabled, print matching emails. Otherwise, stay silent.
+                if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
+                    print_mailbox_match_count "${account}" "${mailbox}" "${default_cutoff_date}"
+                fi
+                if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
+                    echo "---------------------------------------------------"
                     print_mailbox_match_subject_lines "${account}" "${mailbox}" "${default_cutoff_date}"
                 fi
         done
@@ -169,10 +189,12 @@ report_custom_mailboxes() {
         mailbox=$(echo $mailbox_settings | awk '{print $2}')
         max_days=$(echo $mailbox_settings | awk '{print $3}')
 
-        print_mailbox_match_count "${account}" "${mailbox}" "${max_days}"
-        echo "---------------------------------------------------"
-        if [[ "${TESTING_ON}" -ne 1 ]] && [ "${DEBUG_ON}" -ne 0 ]; then
-            # If not enabled, print matching emails. Otherwise, stay silent.
+        if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
+            print_mailbox_match_count "${account}" "${mailbox}" "${max_days}"
+        fi
+
+        if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
+            echo "---------------------------------------------------"
             print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
         fi
 
@@ -191,7 +213,7 @@ prune_default_mailboxes() {
     for mailbox in "${default_mailboxes_to_prune[@]}"
     do
 
-        if [[ "${DEBUG_ON}" -ne 0 ]]; then
+        if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
             doveadm -vD expunge -A mailbox ${mailbox} before ${default_cutoff_date}days
         else
@@ -227,7 +249,7 @@ prune_custom_mailboxes() {
         mailbox=$(echo $mailbox_settings | awk '{print $2}')
         max_days=$(echo $mailbox_settings | awk '{print $3}')
 
-        if [[ "${DEBUG_ON}" -ne 0 ]]; then
+        if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
             doveadm -vD expunge -u ${account} mailbox ${mailbox} before ${max_days}days
         else
@@ -243,7 +265,7 @@ report_default_mailboxes
 
 
 # Prune all accounts
-if [[ "${TESTING_ON}" -ne 1 ]]; then
+if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
     # Only prune if we're not actively testing new changes
     prune_default_mailboxes
 fi
@@ -255,7 +277,7 @@ report_custom_mailboxes
 
 # Prune email using per-user settings in addition to whatever the
 # the default pruning script already handles
-if [[ "${TESTING_ON}" -ne 1 ]]; then
+if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
     # Only prune if we're not actively testing new changes
     prune_custom_mailboxes
 fi
