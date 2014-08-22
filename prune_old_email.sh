@@ -34,7 +34,7 @@
 #############################################################################
 
 # Turn this off if testing other portions of the code (reporting for example)
-EMAIL_PRUNING_ENABLED=0
+EMAIL_PRUNING_ENABLED=1
 
 # Verbose output. Useful to verify that the script works as a whole. Recommended
 # to disable if not actively testing/verifying script functionality.
@@ -50,7 +50,7 @@ DISPLAY_PRUNING_OUTPUT=1
 #
 
 # Displays the subject lines of emails that are about to be removed
-DISPLAY_EMAIL_SUBJECT_LINES=0
+DISPLAY_EMAIL_SUBJECT_LINES=1
 
 # Displays the account, mailbox and number of emails that are about to be 
 # removed from it
