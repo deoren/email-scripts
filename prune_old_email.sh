@@ -15,21 +15,20 @@
 #   http://notes.sagredo.eu/node/124
 
 #############################################################################
-# FIXME:
+# FIXME: (#2092)
 #############################################################################
 #   How do I want to define email older than X that should be removed?
 #
 # * Email received more than X days and moved to trash 
 #       (eligible immediately)
 #
-#       doveadm -v search -A mailbox ${mailbox} before ${cutoff_date}days
+#       doveadm -v search -A mailbox ${mailbox} BEFORE ${cutoff_date}days
 #
 #
 # * Email placed in the Trash and left there for X days 
 #       (eligible after X days sitting in Trash)
 #
-#
-#       doveadm -v search -A mailbox ${mailbox} savedbefore ${cutoff_date}days
+#       doveadm -v search -A mailbox ${mailbox} SAVEDBEFORE ${cutoff_date}days
 #
 #############################################################################
 
@@ -79,6 +78,9 @@ default_mailboxes_to_report=(
 # Measured in days (Example: "30")
 default_cutoff_date="60"
 
+# The IMAPv4 search key used to identify mail that should be pruned.
+default_imap_search_key="SAVEDBEFORE"
+
 #######################################################################
 # Per-user settings
 #######################################################################
@@ -103,8 +105,9 @@ declare -a query_results
 get_accounts_with_old_mail () {
 
     cutoff_date=$1
+    imap_search_key=$2
 
-    doveadm -v search -A mailbox ${mailbox} before ${cutoff_date}days \
+    doveadm -v search -A mailbox ${mailbox} ${imap_search_key} ${cutoff_date}days \
         | cut -f 1 -d ' ' \
         | sort \
         | uniq
@@ -115,9 +118,11 @@ print_mailbox_match_count () {
 
     account=$1
     mailbox=$2
-    cutoff_date=$3
+    imap_search_key=$3
+    cutoff_date=$4
 
-    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} before ${cutoff_date}days | wc -l)
+
+    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} ${imap_search_key} ${cutoff_date}days | wc -l)
 
     echo -e "\n${account} [${mailbox}] (${cutoff_date} days): ${msg_match_count}"
 
@@ -127,9 +132,11 @@ print_mailbox_match_subject_lines () {
 
     account=$1
     mailbox=$2
-    cutoff_date=$3
+    imap_search_key=$3
+    cutoff_date=$4
 
-    doveadm search -u ${account} mailbox ${mailbox} before ${cutoff_date}days | 
+
+    doveadm search -u ${account} mailbox ${mailbox} ${imap_search_key} ${cutoff_date}days | 
     while read guid uid
     do 
         doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -i 'Subject: '
@@ -140,20 +147,23 @@ print_mailbox_match_subject_lines () {
 
 report_default_mailboxes() {
 
+    imap_search_key=$1
+    cutoff_date=$2
+
     echo -e "\n#################################################################"
     echo -e "Processing default mailbox expiration settings ..."
     echo -e "#################################################################\n"
 
     for mailbox in "${default_mailboxes_to_report[@]}"
     do
-        for account in $(get_accounts_with_old_mail "${default_cutoff_date}")
+        for account in $(get_accounts_with_old_mail "${cutoff_date}" "${imap_search_key}")
             do 
                 if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
-                    print_mailbox_match_count "${account}" "${mailbox}" "${default_cutoff_date}"
+                    print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${cutoff_date}"
                 fi
                 if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
                     echo "---------------------------------------------------"
-                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${default_cutoff_date}"
+                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${cutoff_date}"
                 fi
         done
     done
@@ -182,15 +192,16 @@ report_custom_mailboxes() {
         # FIXME: This can be done a lot more efficiently
         account=$(echo $mailbox_settings | awk '{print $1}')
         mailbox=$(echo $mailbox_settings | awk '{print $2}')
-        max_days=$(echo $mailbox_settings | awk '{print $3}')
+        imap_search_key=$(echo $mailbox_settings | awk '{print $3}')
+        max_days=$(echo $mailbox_settings | awk '{print $4}')
 
         if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
-            print_mailbox_match_count "${account}" "${mailbox}" "${max_days}"
+            print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${max_days}"
         fi
 
         if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
             echo "---------------------------------------------------"
-            print_mailbox_match_subject_lines "${account}" "${mailbox}" "${max_days}"
+            print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${max_days}"
         fi
 
     done
@@ -210,9 +221,9 @@ prune_default_mailboxes() {
 
         if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
-            doveadm -vD expunge -A mailbox ${mailbox} before ${default_cutoff_date}days
+            doveadm -vD expunge -A mailbox ${mailbox} ${imap_search_key} ${default_cutoff_date}days
         else
-            doveadm expunge -A mailbox ${mailbox} before ${default_cutoff_date}days
+            doveadm expunge -A mailbox ${mailbox} ${imap_search_key} ${default_cutoff_date}days
         fi
     done
 
@@ -241,14 +252,14 @@ prune_custom_mailboxes() {
 
         # FIXME: This can be done a lot more efficiently
         account=$(echo $mailbox_settings | awk '{print $1}')
-        mailbox=$(echo $mailbox_settings | awk '{print $2}')
-        max_days=$(echo $mailbox_settings | awk '{print $3}')
+        imap_search_key=$(echo $mailbox_settings | awk '{print $3}')
+        max_days=$(echo $mailbox_settings | awk '{print $4}')
 
         if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
-            doveadm -vD expunge -u ${account} mailbox ${mailbox} before ${max_days}days
+            doveadm -vD expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${max_days}days
         else
-            doveadm expunge -u ${account} mailbox ${mailbox} before ${max_days}days
+            doveadm expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${max_days}days
         fi
     done
 
