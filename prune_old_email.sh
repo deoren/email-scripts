@@ -14,23 +14,6 @@
 #   http://wiki2.dovecot.org/Tools/Doveadm/Search
 #   http://notes.sagredo.eu/node/124
 
-#############################################################################
-# FIXME: (#2092)
-#############################################################################
-#   How do I want to define email older than X that should be removed?
-#
-# * Email received more than X days and moved to trash 
-#       (eligible immediately)
-#
-#       doveadm -v search -A mailbox ${mailbox} BEFORE ${cutoff_date}days
-#
-#
-# * Email placed in the Trash and left there for X days 
-#       (eligible after X days sitting in Trash)
-#
-#       doveadm -v search -A mailbox ${mailbox} SAVEDBEFORE ${cutoff_date}days
-#
-#############################################################################
 
 # Turn this off if testing other portions of the code (reporting for example)
 EMAIL_PRUNING_ENABLED=1
@@ -75,10 +58,19 @@ default_mailboxes_to_report=(
     Junk
 )
 
-# Measured in days (Example: "30")
-default_cutoff_date="60"
+# Measured in days (Example: "30d")
+default_imap_date_specification="60d"
 
 # The IMAPv4 search key used to identify mail that should be pruned.
+#
+# BEFORE
+#
+#   Email older than X days and moved to target IMAP mailbox
+#
+# SAVEDBEFORE
+#
+#   Email left in the target IMAP mailbox for X days
+#
 default_imap_search_key="SAVEDBEFORE"
 
 #######################################################################
@@ -88,8 +80,9 @@ default_imap_search_key="SAVEDBEFORE"
 mysql_query='
 SELECT
     virtual_users.email, 
-    mailbox_expiration_settings.imap_mailbox_name, 
-    mailbox_expiration_settings.max_days 
+    mailbox_expiration_settings.imap_mailbox_name,
+    mailbox_expiration_settings.imap_search_key,
+    mailbox_expiration_settings.date_specification_interval
 FROM
     mailbox_expiration_settings, 
     virtual_users 
@@ -104,10 +97,10 @@ declare -a query_results
 
 get_accounts_with_old_mail () {
 
-    cutoff_date=$1
-    imap_search_key=$2
+    imap_search_key=$1
+    date_specification_interval=$2
 
-    doveadm -v search -A mailbox ${mailbox} ${imap_search_key} ${cutoff_date}days \
+    doveadm -v search -A mailbox ${mailbox} ${imap_search_key} ${date_specification_interval} \
         | cut -f 1 -d ' ' \
         | sort \
         | uniq
@@ -119,12 +112,12 @@ print_mailbox_match_count () {
     account=$1
     mailbox=$2
     imap_search_key=$3
-    cutoff_date=$4
+    date_specification_interval=$4
 
 
-    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} ${imap_search_key} ${cutoff_date}days | wc -l)
+    msg_match_count=$(doveadm -v search -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval} | wc -l)
 
-    echo -e "\n${account} [${mailbox}] (${cutoff_date} days): ${msg_match_count}"
+    echo -e "\n${account} [${mailbox}] {search_key: $imap_search_key} (${date_specification_interval}): ${msg_match_count}"
 
 }
 
@@ -133,10 +126,10 @@ print_mailbox_match_subject_lines () {
     account=$1
     mailbox=$2
     imap_search_key=$3
-    cutoff_date=$4
+    date_specification_interval=$4
 
 
-    doveadm search -u ${account} mailbox ${mailbox} ${imap_search_key} ${cutoff_date}days | 
+    doveadm search -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval} | 
     while read guid uid
     do 
         doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -i 'Subject: '
@@ -148,7 +141,7 @@ print_mailbox_match_subject_lines () {
 report_default_mailboxes() {
 
     imap_search_key=$1
-    cutoff_date=$2
+    date_specification_interval=$2
 
     echo -e "\n#################################################################"
     echo -e "Processing default mailbox expiration settings ..."
@@ -156,14 +149,14 @@ report_default_mailboxes() {
 
     for mailbox in "${default_mailboxes_to_report[@]}"
     do
-        for account in $(get_accounts_with_old_mail "${cutoff_date}" "${imap_search_key}")
+        for account in $(get_accounts_with_old_mail "${imap_search_key}" "${date_specification_interval}")
             do 
                 if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
-                    print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${cutoff_date}"
+                    print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
                 fi
                 if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
                     echo "---------------------------------------------------"
-                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${cutoff_date}"
+                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
                 fi
         done
     done
@@ -193,15 +186,15 @@ report_custom_mailboxes() {
         account=$(echo $mailbox_settings | awk '{print $1}')
         mailbox=$(echo $mailbox_settings | awk '{print $2}')
         imap_search_key=$(echo $mailbox_settings | awk '{print $3}')
-        max_days=$(echo $mailbox_settings | awk '{print $4}')
+        date_specification_interval=$(echo $mailbox_settings | awk '{print $4}')
 
         if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
-            print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${max_days}"
+            print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
         fi
 
         if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
             echo "---------------------------------------------------"
-            print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${max_days}"
+            print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
         fi
 
     done
@@ -209,6 +202,9 @@ report_custom_mailboxes() {
 }
 
 prune_default_mailboxes() {
+
+    imap_search_key=$1
+    date_specification_interval=$2
 
     if [[ "${DEBUG_ON}" -ne 0 ]]; then
         echo -e "\n#################################################################"
@@ -221,9 +217,9 @@ prune_default_mailboxes() {
 
         if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
-            doveadm -vD expunge -A mailbox ${mailbox} ${imap_search_key} ${default_cutoff_date}days
+            doveadm -vD expunge -A mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
         else
-            doveadm expunge -A mailbox ${mailbox} ${imap_search_key} ${default_cutoff_date}days
+            doveadm expunge -A mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
         fi
     done
 
@@ -252,14 +248,15 @@ prune_custom_mailboxes() {
 
         # FIXME: This can be done a lot more efficiently
         account=$(echo $mailbox_settings | awk '{print $1}')
+        mailbox=$(echo $mailbox_settings | awk '{print $2}')
         imap_search_key=$(echo $mailbox_settings | awk '{print $3}')
-        max_days=$(echo $mailbox_settings | awk '{print $4}')
+        date_specification_interval=$(echo $mailbox_settings | awk '{print $4}')
 
         if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
-            doveadm -vD expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${max_days}days
+            doveadm -vD expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
         else
-            doveadm expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${max_days}days
+            doveadm expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
         fi
     done
 
@@ -267,13 +264,13 @@ prune_custom_mailboxes() {
 
 
 # Generate a list of content to be pruned for all accounts
-report_default_mailboxes
+report_default_mailboxes "${default_imap_search_key}" "${default_imap_date_specification}"
 
 
 # Prune all accounts
 if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
     # Only prune if we're not actively testing new changes
-    prune_default_mailboxes
+    prune_default_mailboxes "${default_imap_search_key}" "${default_imap_date_specification}"
 fi
 
 
@@ -287,4 +284,3 @@ if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
     # Only prune if we're not actively testing new changes
     prune_custom_mailboxes
 fi
-
