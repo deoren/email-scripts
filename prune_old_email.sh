@@ -119,7 +119,7 @@ print_mailbox_match_subject_lines () {
 }
 
 
-report_default_mailboxes() {
+process_default_mailboxes() {
 
     local -a query_results
 
@@ -145,22 +145,34 @@ report_default_mailboxes() {
         date_specification_interval=$(echo $mailbox_settings | awk '{print $3}')
 
         for account in $(get_accounts_with_old_mail "${imap_search_key}" "${date_specification_interval}")
-            do
-                if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
-                    print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
-                fi
+        do
+            if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
+                print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
+            fi
 
-                if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
-                    echo "---------------------------------------------------"
-                    print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
+            if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
+                echo "---------------------------------------------------"
+                print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
+            fi
+
+            # Only prune if we're not actively testing new changes
+            if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
+
+                if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
+
+                    doveadm -vD expunge -u ${account} -d mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
+                else
+                    doveadm expunge -u ${account} -d mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
                 fi
+            fi
+
         done
 
     done
 
 }
 
-report_custom_mailboxes() {
+process_custom_mailboxes() {
 
     local -a query_results
 
@@ -196,105 +208,26 @@ report_custom_mailboxes() {
             print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
         fi
 
-    done
+        # Only prune if we're not actively testing new changes
+        if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
 
-}
+            if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
-prune_default_mailboxes() {
-
-    local -a query_results
-
-    if [[ "${DEBUG_ON}" -ne 0 ]]; then
-        echo -e "\n#################################################################"
-        echo -e "Pruning emails that meet default mailbox expiration settings ..."
-        echo -e "#################################################################\n"
-    fi
-
-    #
-    # Build array from query results
-    #
-
-    # http://stackoverflow.com/questions/13843896/store-query-in-array-in-bash
-    while read row
-    do 
-        query_results+=("${row}")
-    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${default_expiration_settings_query}")
-
-    for mailbox_settings in "${query_results[@]}"
-    do
-        # FIXME: This can be done a lot more efficiently
-        mailbox=$(echo $mailbox_settings | awk '{print $1}')
-        imap_search_key=$(echo $mailbox_settings | awk '{print $2}')
-        date_specification_interval=$(echo $mailbox_settings | awk '{print $3}')
-
-        if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
-
-            doveadm -vD expunge -A -d mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
-        else
-            doveadm expunge -A -d mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
+                doveadm -vD expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
+            else
+                doveadm expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
+            fi
         fi
-    done
 
-}
-
-prune_custom_mailboxes() {
-
-    local -a query_results
-
-    if [[ "${DEBUG_ON}" -ne 0 ]]; then
-        echo -e "\n#################################################################"
-        echo -e "Pruning emails that meet custom mailbox expiration settings ..."
-        echo -e "#################################################################\n"
-    fi
-
-    #
-    # Build array from query results
-    #
-
-    # http://stackoverflow.com/questions/13843896/store-query-in-array-in-bash
-    while read row
-    do 
-        query_results+=("${row}")
-    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${custom_expiration_settings_query}")
-
-    for mailbox_settings in "${query_results[@]}"
-    do
-
-        # FIXME: This can be done a lot more efficiently
-        account=$(echo $mailbox_settings | awk '{print $1}')
-        mailbox=$(echo $mailbox_settings | awk '{print $2}')
-        imap_search_key=$(echo $mailbox_settings | awk '{print $3}')
-        date_specification_interval=$(echo $mailbox_settings | awk '{print $4}')
-
-        if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
-
-            doveadm -vD expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
-        else
-            doveadm expunge -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
-        fi
     done
 
 }
 
 
-# Generate a list of content to be pruned for all accounts
-report_default_mailboxes
-
-
-# Prune all accounts
-if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
-    # Only prune if we're not actively testing new changes
-    prune_default_mailboxes "${default_imap_search_key}" "${default_imap_date_specification}"
-fi
-
-
-# Generate a list of content to be pruned for per-user settings
-report_custom_mailboxes
+# Prune from all accounts
+process_default_mailboxes
 
 
 # Prune email using per-user settings in addition to whatever the
 # the default pruning script already handles
-if [[ "${EMAIL_PRUNING_ENABLED}" -eq 1 ]]; then
-    # Only prune if we're not actively testing new changes
-    prune_custom_mailboxes
-fi
+process_custom_mailboxes
