@@ -27,14 +27,14 @@ DISPLAY_PRUNING_OUTPUT=1
 # NOTE:
 #
 #   Disabling both of these makes calling the reporting fucntions useless.
-#   However, enabling the 'DISPLAY_MAILBOX_REMOVAL_COUNT' option and not the 
+#   However, enabling the 'DISPLAY_MAILBOX_REMOVAL_COUNT' option and not the
 #   other probably won't be all that useful either.
 #
 
 # Displays the subject lines of emails that are about to be removed
 DISPLAY_EMAIL_SUBJECT_LINES=1
 
-# Displays the account, mailbox and number of emails that are about to be 
+# Displays the account, mailbox and number of emails that are about to be
 # removed from it
 DISPLAY_MAILBOX_REMOVAL_COUNT=1
 
@@ -62,13 +62,13 @@ FROM
 
 custom_expiration_settings_query='
 SELECT
-    virtual_users.email, 
+    virtual_users.email,
     mailbox_custom_expiration_settings.imap_mailbox_name,
     mailbox_custom_expiration_settings.imap_search_key,
     mailbox_custom_expiration_settings.date_specification_interval
 FROM
-    mailbox_custom_expiration_settings, 
-    virtual_users 
+    mailbox_custom_expiration_settings,
+    virtual_users
 WHERE
     virtual_users.id = mailbox_custom_expiration_settings.user_id;
 '
@@ -110,9 +110,9 @@ print_mailbox_match_subject_lines () {
     date_specification_interval=$4
 
 
-    doveadm search -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval} | 
+    doveadm search -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval} |
     while read guid uid
-    do 
+    do
         doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -Ei '^Subject: '
     done
 
@@ -133,7 +133,7 @@ process_default_mailboxes() {
 
     # http://stackoverflow.com/questions/13843896/store-query-in-array-in-bash
     while read row
-    do 
+    do
         query_results+=("${row}")
     done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${default_expiration_settings_query}")
 
@@ -186,7 +186,7 @@ process_custom_mailboxes() {
 
     # http://stackoverflow.com/questions/13843896/store-query-in-array-in-bash
     while read row
-    do 
+    do
         query_results+=("${row}")
     done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${custom_expiration_settings_query}")
 
