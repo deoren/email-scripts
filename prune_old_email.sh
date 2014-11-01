@@ -58,8 +58,6 @@ FROM
 # Per-user settings
 #######################################################################
 
-
-
 custom_expiration_settings_query='
 SELECT
     virtual_users.email,
