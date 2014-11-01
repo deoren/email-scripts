@@ -45,39 +45,22 @@ DISPLAY_MAILBOX_REMOVAL_COUNT=1
 # Settings for all accounts
 #######################################################################
 
-# Dovecot calls these 'mailboxes', so I used the same terminology here.
-default_mailboxes_to_prune=(
-    Trash
-    Spam
-    Junk
-)
-
-default_mailboxes_to_report=(
-    Trash
-    Spam
-    Junk
-)
-
-# Measured in days (Example: "30d")
-default_imap_date_specification="60d"
-
-# The IMAPv4 search key used to identify mail that should be pruned.
-#
-# BEFORE
-#
-#   Email older than X days and moved to target IMAP mailbox
-#
-# SAVEDBEFORE
-#
-#   Email left in the target IMAP mailbox for X days
-#
-default_imap_search_key="SAVEDBEFORE"
+default_expiration_settings_query='
+SELECT
+    mailbox_default_expiration_settings.imap_mailbox_name,
+    mailbox_default_expiration_settings.imap_search_key,
+    mailbox_default_expiration_settings.date_specification_interval
+FROM
+    mailbox_default_expiration_settings;
+'
 
 #######################################################################
 # Per-user settings
 #######################################################################
 
-mysql_query='
+
+
+custom_expiration_settings_query='
 SELECT
     virtual_users.email, 
     mailbox_custom_expiration_settings.imap_mailbox_name,
@@ -92,8 +75,6 @@ WHERE
 
 mysql_client_conf_file="/root/.my-mailserver_expiration_settings.cf"
 
-
-declare -a query_results
 
 get_accounts_with_old_mail () {
 
@@ -132,7 +113,7 @@ print_mailbox_match_subject_lines () {
     doveadm search -u ${account} mailbox ${mailbox} ${imap_search_key} ${date_specification_interval} | 
     while read guid uid
     do 
-        doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -i 'Subject: '
+        doveadm fetch -u ${account} hdr mailbox-guid $guid uid $uid | grep -Ei '^Subject: '
     done
 
 }
@@ -140,30 +121,48 @@ print_mailbox_match_subject_lines () {
 
 report_default_mailboxes() {
 
-    imap_search_key=$1
-    date_specification_interval=$2
+    local -a query_results
 
     echo -e "\n#################################################################"
     echo -e "Processing default mailbox expiration settings ..."
     echo -e "#################################################################\n"
 
-    for mailbox in "${default_mailboxes_to_report[@]}"
+    #
+    # Build array from query results
+    #
+
+    # http://stackoverflow.com/questions/13843896/store-query-in-array-in-bash
+    while read row
+    do 
+        query_results+=("${row}")
+    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${default_expiration_settings_query}")
+
+    for mailbox_settings in "${query_results[@]}"
     do
+        # FIXME: This can be done a lot more efficiently
+        mailbox=$(echo $mailbox_settings | awk '{print $1}')
+        imap_search_key=$(echo $mailbox_settings | awk '{print $2}')
+        date_specification_interval=$(echo $mailbox_settings | awk '{print $3}')
+
         for account in $(get_accounts_with_old_mail "${imap_search_key}" "${date_specification_interval}")
-            do 
+            do
                 if [[ "${DISPLAY_MAILBOX_REMOVAL_COUNT}" -eq 1 ]]; then
                     print_mailbox_match_count "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
                 fi
+
                 if [[ "${DISPLAY_EMAIL_SUBJECT_LINES}" -eq 1 ]]; then
                     echo "---------------------------------------------------"
                     print_mailbox_match_subject_lines "${account}" "${mailbox}" "${imap_search_key}" "${date_specification_interval}"
                 fi
         done
+
     done
 
 }
 
 report_custom_mailboxes() {
+
+    local -a query_results
 
     echo -e "\n#################################################################"
     echo -e "Processing custom per-user/per-mailbox expiration settings ..."
@@ -177,7 +176,7 @@ report_custom_mailboxes() {
     while read row
     do 
         query_results+=("${row}")
-    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${mysql_query}")
+    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${custom_expiration_settings_query}")
 
     for mailbox_settings in "${query_results[@]}"
     do
@@ -203,8 +202,7 @@ report_custom_mailboxes() {
 
 prune_default_mailboxes() {
 
-    imap_search_key=$1
-    date_specification_interval=$2
+    local -a query_results
 
     if [[ "${DEBUG_ON}" -ne 0 ]]; then
         echo -e "\n#################################################################"
@@ -212,20 +210,36 @@ prune_default_mailboxes() {
         echo -e "#################################################################\n"
     fi
 
-    for mailbox in "${default_mailboxes_to_prune[@]}"
+    #
+    # Build array from query results
+    #
+
+    # http://stackoverflow.com/questions/13843896/store-query-in-array-in-bash
+    while read row
+    do 
+        query_results+=("${row}")
+    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${default_expiration_settings_query}")
+
+    for mailbox_settings in "${query_results[@]}"
     do
+        # FIXME: This can be done a lot more efficiently
+        mailbox=$(echo $mailbox_settings | awk '{print $1}')
+        imap_search_key=$(echo $mailbox_settings | awk '{print $2}')
+        date_specification_interval=$(echo $mailbox_settings | awk '{print $3}')
 
         if [[ "${DISPLAY_PRUNING_OUTPUT}" -eq 1 ]]; then
 
-            doveadm -vD expunge -A mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
+            doveadm -vD expunge -A -d mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
         else
-            doveadm expunge -A mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
+            doveadm expunge -A -d mailbox ${mailbox} ${imap_search_key} ${date_specification_interval}
         fi
     done
 
 }
 
 prune_custom_mailboxes() {
+
+    local -a query_results
 
     if [[ "${DEBUG_ON}" -ne 0 ]]; then
         echo -e "\n#################################################################"
@@ -241,7 +255,7 @@ prune_custom_mailboxes() {
     while read row
     do 
         query_results+=("${row}")
-    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${mysql_query}")
+    done < <(mysql --defaults-file=${mysql_client_conf_file} -e "${custom_expiration_settings_query}")
 
     for mailbox_settings in "${query_results[@]}"
     do
@@ -264,7 +278,7 @@ prune_custom_mailboxes() {
 
 
 # Generate a list of content to be pruned for all accounts
-report_default_mailboxes "${default_imap_search_key}" "${default_imap_date_specification}"
+report_default_mailboxes
 
 
 # Prune all accounts
