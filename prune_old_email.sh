@@ -87,10 +87,10 @@ FROM
     mailbox_expiration_settings, 
     virtual_users 
 WHERE
-    virtual_users.id = mailbox_expiration_settings.user_id;
+    virtual_users.id = mailbox_custom_expiration_settings.user_id;
 '
 
-mysql_client_conf_file="/root/.my-mailserver_expiration_setting.cf"
+mysql_client_conf_file="/root/.my-mailserver_expiration_settings.cf"
 
 
 declare -a query_results
