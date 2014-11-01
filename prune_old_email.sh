@@ -80,11 +80,11 @@ default_imap_search_key="SAVEDBEFORE"
 mysql_query='
 SELECT
     virtual_users.email, 
-    mailbox_expiration_settings.imap_mailbox_name,
-    mailbox_expiration_settings.imap_search_key,
-    mailbox_expiration_settings.date_specification_interval
+    mailbox_custom_expiration_settings.imap_mailbox_name,
+    mailbox_custom_expiration_settings.imap_search_key,
+    mailbox_custom_expiration_settings.date_specification_interval
 FROM
-    mailbox_expiration_settings, 
+    mailbox_custom_expiration_settings, 
     virtual_users 
 WHERE
     virtual_users.id = mailbox_custom_expiration_settings.user_id;
