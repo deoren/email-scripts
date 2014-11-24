@@ -63,8 +63,10 @@ do
         line="$(grep $queue_id ${log_file})"
         echo -e "\n$line" | ccze -A
 
+        # Gather what looks like an email address
         possible_address=$(echo -e "\n$line" | grep -Eo 'orig_to=<[[:print:]]+>' | sed -e 's/orig_to=<//' -e 's/>//')
 
+        # Make sure it has an @ symbol in the string
         if [[ $possible_address =~ "@" ]]
         then
            # Gather email addresses
