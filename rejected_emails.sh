@@ -19,7 +19,7 @@ current_mail_log="/var/log/mail.log"
 
 # NOTE: You'll probably want to change this to /var/log/mail.log.1
 previous_mail_log="/var/log/mail/mail.log.1"
-exclude_entries_regex="Greylist|Account terminated|postgrey|Invalid account"
+exclude_entries_regex="Greylist|Account terminated|postgrey|Invalid account|info: header Subject:"
 
 echo -e "\n#################################################################"
 echo "Rejected emails addresses (non-greylisted and explicit rejection)"
